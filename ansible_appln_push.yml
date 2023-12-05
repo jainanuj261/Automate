@@ -1,0 +1,60 @@
+---
+- name: Perform Setup Tasks
+  hosts: cob_machines  # Replace with your target host or group of hosts
+  become: yes  # This allows Ansible to run tasks with sudo
+
+  tasks:
+    - name: Create directory /opt/sre/code
+      file:
+        path: /opt/sre/code
+        state: directory
+        mode: '0755'
+
+    - name: Copy automate.py to /opt/sre/code
+      copy:
+        src:  /home/ajain-prd/automate.py
+        dest: /opt/sre/code/automate.py
+        remote_src: yes  # Copy files from the Ansible control machine
+
+    - name: Create and chmod script.log
+      file:
+        path: /var/log/script.log
+        state: touch
+        mode: '0755'
+
+    - name: Create hosts.yml
+      file:
+        path: /opt/sre/code/hosts.yml
+        state: touch
+        mode: '0755'
+
+    - name: Copy sre-ansible/ to /opt/sre/
+      copy:
+        src: /opt/sre/sre-ansible
+        dest: /opt/sre/
+        remote_src: yes  # Copy files from the Ansible control machine
+
+    - name: Copy config.py to /opt/sre/code
+      copy:
+        src: /opt/sre/code/config.py
+        dest: /opt/sre/code/
+        remote_src: yes  # Copy files from the Ansible control machine
+
+    - name: Install Nuitka and tabulate using pip3
+      pip:
+        executable: /usr/bin/pip3
+        name: "{{ item }}"
+      with_items:
+        - nuitka
+        - tabulate
+
+    - name: Compile automate.py with Nuitka
+      shell: nuitka3 --standalone --include-package=tabulate /opt/sre/code/automate.py
+      args:
+        chdir: /opt/sre/code
+      become_user: root  # Run the command as root
+
+    - name: Create symbolic link
+      command: ln -s /opt/sre/code/automate.dist/automate.bin /usr/local/bin/automate
+      become_user: root  # Run the command as root
+
